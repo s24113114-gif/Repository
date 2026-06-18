@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>個人微型記帳本</title>
+    <style>
+        .hidden { display: none; }
+        .dashboard { margin-top: 20px; padding: 10px; background: #f0f0f0; }
+    </style>
+</head>
+<body>
+
+    <div id="auth-section">
+        <h2>會員系統</h2>
+        <input type="text" id="username" placeholder="帳號"><br>
+        <input type="password" id="password" placeholder="密碼 (至少6位)"><br>
+        <button onclick="handleRegister()">註冊</button>
+        <button onclick="handleLogin()">登入</button>
+    </div>
+
+    <div id="main-section" class="hidden">
+        <h2>我的記帳本 <button onclick="handleLogout()">登出</button></h2>
+        
+        <div class="dashboard">
+            <h3>財務總覽</h3>
+            <p>總收入：$<span id="total-income">0</span></p>
+            <p>總支出：$<span id="total-expense">0</span></p>
+            <p>資產剩餘金額：$<span id="total-balance">0</span></p>
+        </div>
+
+        <h3>新增帳目</h3>
+        <select id="rec-type">
+            <option value="expense">支出</option>
+            <option value="income">收入</option>
+        </select>
+        <select id="rec-category">
+            <option value="餐飲">餐飲</option>
+            <option value="交通">交通</option>
+            <option value="娛樂">娛樂</option>
+            <option value="其他">其他</option>
+        </select>
+        <input type="number" id="rec-amount" placeholder="金額">
+        <input type="text" id="rec-desc" placeholder="備註">
+        <button onclick="addRecord()">新增記錄</button>
+
+        <h3>歷史明細</h3>
+        <ul id="record-list"></ul>
+    </div>
+
+    <script>
+        let currentUserId = localStorage.getItem('userId');
+
+        // 初始化檢查
+        if (currentUserId) { showMainPage(); }
+
+        function showMainPage() {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('main-section').classList.remove('hidden');
+            fetchRecords();
+        }
+
+        // 註冊 (含前端輸入限制加分項)
+        async function handleRegister() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            if(p.length < 6) { alert('前端警告：密碼長度不能小於 6 個字！'); return; }
+            
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: u, password: p })
+            });
+            const data = await res.json();
+            alert(data.message);
+        }
+
+        // 登入
+        async function handleLogin() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: u, password: p })
+            });
+            const data = await res.json();
+            if(res.ok) {
+                localStorage.setItem('userId', data.userId);
+                currentUserId = data.userId;
+                showMainPage();
+            } else { alert(data.message); }
+        }
+
+        // 登出
+        function handleLogout() {
+            localStorage.removeItem('userId');
+            location.reload(); // 登出重整回首頁
+        }
+
+        // 取得資料並更新畫面 (SPA 局部更新、不閃爍、自動計算)
+        async function fetchRecords() {
+            const res = await fetch('/api/accounts', {
+                headers: { 'Authorization': currentUserId }
+            });
+            
+            // 處理 401 未登入安全攔截
+            if (res.status === 401) {
+                alert('安全性警報：您尚未登入，將引導回登入頁面！');
+                handleLogout();
+                return;
+            }
+
+            const records = await res.json();
+            const list = document.getElementById('record-list');
+            list.innerHTML = '';
+
+            let income = 0, expense = 0;
+
+            records.forEach(r => {
+                if(r.type === 'income') income += r.amount;
+                else expense += r.amount;
+
+                const li = document.createElement('li');
+                li.innerHTML = `[${r.type === 'income'?'收入':'支出'}-${r.category}] $${r.amount} - ${r.description || ''} 
+                                <button onclick="deleteRecord('${r._id}')">刪除</button>`;
+                list.appendChild(li);
+            });
+
+            // 更新自動計算區塊
+            document.getElementById('total-income').innerText = income;
+            document.getElementById('total-expense').innerText = expense;
+            document.getElementById('total-balance').innerText = income - expense;
+        }
+
+        // 新增記錄 (SPA 局部非同步)
+        async function addRecord() {
+            const type = document.getElementById('rec-type').value;
+            const category = document.getElementById('rec-category').value;
+            const amount = Number(document.getElementById('rec-amount').value);
+            const description = document.getElementById('rec-desc').value;
+
+            await fetch('/api/accounts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': currentUserId },
+                body: JSON.stringify({ type, category, amount, description })
+            });
+            fetchRecords(); // 重新抓取資料渲染，網頁免重整
+        }
+
+        // 刪除記錄 (SPA 局部非同步)
+        async function deleteRecord(id) {
+            await fetch(`/api/accounts/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': currentUserId }
+            });
+            fetchRecords(); // 重新抓取資料渲染，網頁免重整
+        }
+    </script>
+</body>
+</html>
