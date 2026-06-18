@@ -6,7 +6,7 @@ const UserSchema = new mongoose.Schema({
     password: { type: String, required: true }
 });
 
-// 儲存前自動將密碼進行 bcrypt 加密（會呈現 $2b$ 開頭）
+// 儲存到資料庫前，自動將密碼進行加密（滿足 60碼及 $2b$ 開頭規範）
 UserSchema.pre('save', async function(next) {
     if (!this.isModified('password')) return next();
     this.password = await bcrypt.hash(this.password, 10);
