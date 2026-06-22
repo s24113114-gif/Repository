@@ -65,10 +65,9 @@
   </div>
 
   <script>
-    // ！！！請將此網址替換為你在 Render 部署成功的後端網址 ！！！
-    const API_BASE = 'https://repository-5mi9.onrender.com/api';
+    // 🌟 改為相對路徑，因為前後端同網址
+    const API_BASE = '/api';
 
-    // 介面切換邏輯
     function checkAuth() {
       const token = localStorage.getItem('token');
       const username = localStorage.getItem('username');
@@ -76,14 +75,13 @@
         document.getElementById('authBlock').classList.add('hidden');
         document.getElementById('mainBlock').classList.remove('hidden');
         document.getElementById('userDisplay').innerText = username;
-        fetchRecords(); // 局部刷新資料
+        fetchRecords(); 
       } else {
         document.getElementById('authBlock').classList.remove('hidden');
         document.getElementById('mainBlock').classList.add('hidden');
       }
     }
 
-    // 處理 API 錯誤響應 (防禦性解析，防止 404/500 噴 HTML 導致崩潰)
     async function handleResponse(response) {
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.indexOf("application/json") !== -1) {
@@ -94,14 +92,14 @@
       }
     }
 
-    // 【評分標準 1-1 & 加分項】：註冊事件
+    // 註冊事件
     document.getElementById('registerBtn').addEventListener('click', async () => {
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
 
       if(!username) return alert('請輸入帳號');
       
-      // 【+5分挑戰】：前端限制密碼少於 6 個字跳出警告並阻擋
+      // 【+5分挑戰】：前端限制密碼少於 6 個字
       if (password.length < 6) {
         alert('密碼長度不能少於 6 個字！');
         return;
@@ -148,14 +146,13 @@
       }
     });
 
-    // 登出事件
     document.getElementById('logoutBtn').addEventListener('click', () => {
       localStorage.removeItem('token');
       localStorage.removeItem('username');
       checkAuth();
     });
 
-    // 【評分標準 1-3 & 1-4 & 加分項】：拉取帳目並進行 SPA 局部渲染與自動計算
+    // 獲取帳目 (SPA 局部刷新)
     async function fetchRecords() {
       const token = localStorage.getItem('token');
       try {
@@ -163,7 +160,7 @@
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
-        // 【評分標準 1-2】：若收到後端 401，精準彈出警告並踢回登入頁
+        // 【評分標準 1-2】：401 攔截踢回登入
         if (res.status === 401) {
           alert('未登入或驗證已過期，請重新登入！(401)');
           localStorage.clear();
@@ -176,7 +173,7 @@
         let totalIncome = 0;
         let totalExpense = 0;
         const listContainer = document.getElementById('recordList');
-        listContainer.innerHTML = ''; // 清空舊列表，實現不閃爍更新
+        listContainer.innerHTML = ''; 
 
         records.forEach(item => {
           if (item.type === 'income') totalIncome += item.amount;
@@ -194,7 +191,7 @@
           listContainer.appendChild(div);
         });
 
-        // 【+5分挑戰】：自動計算並顯示總收入、總支出與剩餘餘額
+        // 【+5分挑戰】：自動計算面版
         document.getElementById('totalIncome').innerText = `$${totalIncome}`;
         document.getElementById('totalExpense').innerText = `$${totalExpense}`;
         document.getElementById('totalBalance').innerText = `$${totalIncome - totalExpense}`;
@@ -204,9 +201,9 @@
       }
     }
 
-    // 【評分標準 1-4】：新增帳目 (SPA 局部非同步更新)
+    // 新增帳目 (SPA 局部非同步)
     document.getElementById('recordForm').addEventListener('submit', async (e) => {
-      e.preventDefault(); // 阻止表單預設的整頁刷新的行為
+      e.preventDefault(); 
       const token = localStorage.getItem('token');
       
       const type = document.getElementById('recordType').value;
@@ -225,8 +222,8 @@
         });
         
         if (res.ok) {
-          document.getElementById('recordForm').reset(); // 僅重置欄位
-          fetchRecords(); // 局部刷新資料列表，網頁不白掉、不重載
+          document.getElementById('recordForm').reset(); 
+          fetchRecords(); 
         } else {
           const data = await handleResponse(res);
           alert('新增失敗：' + data.message);
@@ -236,7 +233,7 @@
       }
     });
 
-    // 【評分標準 1-4】：刪除帳目 (SPA 局部非同步更新)
+    // 刪除帳目 (SPA 局部非同步)
     async function deleteRecord(id) {
       if(!confirm('確定要刪除這筆帳目嗎？')) return;
       const token = localStorage.getItem('token');
@@ -247,7 +244,7 @@
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
-          fetchRecords(); // 刪除成功後，局部刷新列表
+          fetchRecords(); 
         } else {
           const data = await handleResponse(res);
           alert('刪除失敗：' + data.message);
@@ -257,7 +254,6 @@
       }
     }
 
-    // 網頁開啟時初始化檢查
     checkAuth();
   </script>
 </body>
